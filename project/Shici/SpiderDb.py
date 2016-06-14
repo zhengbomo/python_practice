@@ -1,8 +1,5 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
-
-__author__ = 'bomo'
-
 import sqlite3
 import threading
 

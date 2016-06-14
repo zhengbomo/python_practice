@@ -1,11 +1,6 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 import os
-
-import bs4
-
-__author__ = 'bomo'
-
 from bs4 import BeautifulSoup
 
 
