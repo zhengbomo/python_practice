@@ -30,4 +30,10 @@ if __name__ == '__main__':
     # errors = spider.db.select_error(range(8, 10))
     # print '诗词相关数据爬取完成,总共%d条数据, 错误%d条' % (count, len(errors))
 
+    # 5. 爬取诗词类型
+    # spider.poem_type_crew()
+
+    # 6. 爬取诗词类型对应诗词列表
+    spider.poem_type_poem_list_craw()
+
     print 'completed'

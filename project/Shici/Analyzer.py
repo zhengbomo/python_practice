@@ -200,3 +200,25 @@ class Analyzer(object):
         author_content = {"type": 2, "name": author, "avatar": avatar, "content": content, "url": url}
         return author_content, info_list
 
+    @staticmethod
+    def get_poem_types(html):
+        soup = BeautifulSoup(html, 'html.parser')
+
+        # <div class="typeleft">
+        div_content = soup.find('div', class_='typeleft')
+        son2s = div_content.findAll("div", class_='son2', recursive=False)
+
+        type_list = []
+        for son2 in son2s:
+            sleft = son2.find('div', class_='sleft', recursive=False)
+            type_name = sleft.get_text().strip()
+
+            sright = son2.find('div', class_='sright', recursive=False)
+            aa = sright.findAll('a', recursive=False)
+            types = []
+            for a in aa:
+                types.append((a.get_text(), 'http://www.haoshiwen.org' + a.attrs['href']))
+
+            type_list.append((type_name, types))
+
+        return type_list

@@ -34,7 +34,6 @@ class Scanner(object):
             fo.close()
         Scanner.copy_file_to_folder(match_files, output_folder)
 
-
     @staticmethod
     def copy_file_to_folder(files, folder):
         for f in files:

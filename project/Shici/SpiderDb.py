@@ -11,6 +11,7 @@ class SpiderDb(object):
 
         self.connection = sqlite3.connect(self.path)
         self.connection.row_factory = sqlite3.Row
+        self.connection.executescript('PRAGMA encoding = "UTF-16";')
         self.connection.text_factory = str
         self.create_table()
 
@@ -53,6 +54,11 @@ class SpiderDb(object):
 
             # 作者表
             sql = 'create table IF NOT EXISTS author(id integer primary key, name Text, content Text, avatar Text, url Text)'
+            cu.execute(sql)
+
+            # 类型
+            sql = 'create table IF NOT EXISTS poem_types(id integer primary key, name Text, url Text, ' \
+                  'type DEFAULT 0, type_name Text)'
             cu.execute(sql)
 
             self.connection.commit()
@@ -271,7 +277,36 @@ class SpiderDb(object):
             self.mutex.release()
             return result[0] > 0
 
+    def insert_poem_types(self, type_, type_name, name, url):
+        if self.mutex.acquire():
+            cu = self.connection.cursor()
+            cu.execute('select count(*) from poem_types WHERE url=?', (url,))
 
+            result = cu.fetchone()
+            if result[0] == 0:
+                cu.execute('INSERT INTO poem_types(name, url, type_name, type) VALUES (?,?,?,?)',
+                           (name, url, type_name, type_))
+                self.connection.commit()
+            cu.close()
+            self.mutex.release()
 
+    def get_poem_types(self):
+        if self.mutex.acquire():
+            cu = self.connection.cursor()
+            cu.execute('select * from poem_types')
+            result = cu.fetchall()
+            cu.close()
+            self.mutex.release()
+            return result
 
-
+    def insert_type_poems(self, type_, poems):
+        if self.mutex.acquire():
+            cu = self.connection.cursor()
+            for poem in poems:
+                cu.execute('select count(*) from reactive where type=3 and key=? and value=?', (type_, poem))
+                res = cu.fetchone()
+                if res[0] == 0:
+                    cu.execute('insert into reactive (key, value, type) values(?,?,?)', (str(type_), poem, 3))
+            self.connection.commit()
+            cu.close()
+            self.mutex.release()

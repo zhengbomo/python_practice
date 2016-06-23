@@ -57,7 +57,6 @@ class SpiderMain(object):
                 self.db.insert_error('analyze_poem_list_first_page_error', 1, 'reason', page_url)
                 # 错误入库：analyze_poem_list_first_page_error
 
-    @property
     def poem_detail_crew(self):
         # update urls set analyzed = 1 where url = 'http://www.haoshiwen.org/view.php?id=9510'
         # 一条一条取
@@ -167,3 +166,62 @@ class SpiderMain(object):
             else:
                 # 没有了
                 return
+
+    def poem_type_crew(self):
+        url = 'http://www.haoshiwen.org/type.php'
+        content = Downloader.get_html(url, 'poemlist')
+        if content:
+            result = Analyzer.get_poem_types(content)
+            k = 1
+            for i in result:
+                # 只处理类型
+                if i[0] == u'类型':
+                    for j in i[1]:
+                        self.db.insert_poem_types(k, i[0], j[0], j[1])
+                        print '\t' + j[0]
+                    k += 1
+
+    def poem_type_poem_list_craw(self):
+        types = self.db.get_poem_types()
+        for i in types:
+            j = 1
+
+            while True:
+                page_url = i['url'] + "&page=" + str(j)
+
+                # 入库
+                self.db.insert_url(page_url, 3)
+
+                # 判断是否分析过
+                if self.db.url_analyzed(page_url):
+                    j += 1
+                    continue
+                else:
+                    content = Downloader.get_html(page_url, 'poemlist')
+                    if content:
+                        # 分析诗的列表
+                        poems = Analyzer.get_poems_from_list_page(content)
+
+                        if poems:
+                            # 入库
+                            self.db.insert_type_poems(i['id'], poems)
+                            self.db.update_url(page_url)
+                            print '%d: %s' % (j, page_url)
+                            j += 1
+                        else:
+                            if Analyzer.check_poem_list_last_page(content):
+                                # 最后一页
+                                break
+                            else:
+                                print u'分析失败'
+                                self.db.insert_error('analyze_poem_list_error', 3, 'reason', page_url)
+                                # 错误入库：analyze_poem_list_error
+
+                    else:
+                        print u'获取页面诗词列表错误'
+                        self.db.insert_error('get_poem_list_error', 2, 'reason', page_url)
+                        # 错误入库：get_poem_list_error
+
+
+
+
