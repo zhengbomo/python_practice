@@ -1,0 +1,10 @@
+<script src="{{ url_for('static', filename='jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='chartkick.js') }}"></script>
+
+<!--<script src="{{ url_for('static', filename='Chart.min.js') }}"></script>-->
+<script src="{{ url_for('static', filename='highcharts.js') }}"></script>
+
+{% line_chart data with library={"title":{"text": title}, "subtitle": {"text": subtitle}} %}
+{% pie_chart data with library={"title":{"text": title}, "subtitle": {"text": subtitle}} %}
+{% column_chart data with library={"title":{"text": title}, "subtitle": {"text": subtitle}} %}
+{% area_chart data with library={"title":{"text": title}, "subtitle": {"text": subtitle}} %}
