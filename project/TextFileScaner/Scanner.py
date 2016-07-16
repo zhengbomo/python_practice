@@ -16,23 +16,30 @@ class Scanner(object):
             # (文件夹, 当前子文件夹, 当前子文件)
             for f in res[2]:
                 if re.search(file_pattern, f):
-                    files.append('%s\%s ' % (res[0], f))
+                    files.append('%s/%s ' % (res[0], f))
         return files
 
     @staticmethod
-    def scan(folder, file_pattern, pattern, output_folder):
+    def scan(folder, file_pattern, pattern):
         files = Scanner.__get_all_files(folder, file_pattern)
 
-        match_files = []
-        for f in files:
-            # 读出内容，判断
-            fo = open(f, "r")
-            content = fo.read()
-            m1 = re.search(pattern, content)
-            if m1:
-                match_files.append(f)
-            fo.close()
-        Scanner.copy_file_to_folder(match_files, output_folder)
+        if pattern:
+            match_files = []
+            for f in files:
+                # 读出内容，判断
+                fo = open(f, "r")
+                content = fo.read()
+                m1 = re.search(pattern, content)
+                if m1:
+                    match_files.append(f)
+                fo.close()
+            return match_files
+        else:
+            return files
+
+    def scan_and_copy(folder, file_pattern, pattern, output_folder):
+        files = Scanner.scan(folder, file_pattern, pattern)
+        Scanner.copy_file_to_folder(files, output_folder)
 
     @staticmethod
     def copy_file_to_folder(files, folder):
@@ -40,13 +47,3 @@ class Scanner(object):
             path_name = os.path.split(f)
             target_file = os.path.join(folder, path_name[1])
             shutil.copy(f, target_file)
-
-
-if __name__ == '__main__':
-    scan_folder = r'C:\Users\zheng\Desktop\classes-dex2jar.jar.src\client'
-    output_directory = u'C:\\Users\\zheng\\Desktop\\未命名文件夹\\1'
-    file_filter_pattern = r'.java'
-    search_pattern = r'BaseActivity'
-
-    Scanner.scan(scan_folder, file_filter_pattern, search_pattern, output_directory)
-    print 'complete'

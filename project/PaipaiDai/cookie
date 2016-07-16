@@ -1,0 +1,8 @@
+#LWP-Cookies-2.0
+Set-Cookie3: qlui_loginuname=18600490785; path="/"; domain=".ac.ppdai.com"; path_spec; expires="2016-08-15 15:07:59Z"; version=0
+Set-Cookie3: __eui="t90fhZq7aeawJfcUOwe9Zg%3d%3d"; path="/"; domain=".ppdai.com"; path_spec; discard; version=0
+Set-Cookie3: authid=0EEA68FD7BB73704AB3295ED9A9441F95616BB626CA508F31F4078D74096AF4C641722E1D11597AB3EA71E1C962FF83FC3591DE0BBD20996A9B32982732FF30BA4BFCEB38063399A0B405D6D5066929186477BE8D42E49143FA7E6C54488E8123BE0347EB83348DE9C535987A4E27AF14D43916C69494C94FC3D2E31FEF52835D02AA7F0673974837CEA6FEEEB8118916279AD1088046DFF95292304B94367AD4A3B1A6F954DF10C135DC46225C68FD9D710ABFE2A1FE5D22CFD0CEF23541273280C9B9F; path="/"; domain=".ppdai.com"; path_spec; expires="2016-07-18 03:07:59Z"; HttpOnly=None; version=0
+Set-Cookie3: ppd_uname=pdu1113611416; path="/"; domain=".ppdai.com"; path_spec; domain_dot; expires="2016-08-15 15:07:59Z"; version=0
+Set-Cookie3: token="5129d872-44ac-4f88-95fe-d42477391563"; path="/"; domain=".ppdai.com"; path_spec; discard; version=0
+Set-Cookie3: uniqueid="a520bfd8-98f7-497c-8f98-caea4e02d807"; path="/"; domain=".ppdai.com"; path_spec; expires="2017-07-15 15:07:59Z"; version=0
+Set-Cookie3: BIGipServerPool_Web_FW_80="168366252.20480.0000"; path="/"; domain="invest.ppdai.com"; path_spec; discard; version=0
