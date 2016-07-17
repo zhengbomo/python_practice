@@ -16,6 +16,10 @@ from Analyzer import Analyzer
 from Database import Database, ErrorType
 from PaipaiDai import PaipaiDai
 
+import sys
+reload(sys)
+sys.setdefaultencoding("utf-8")
+
 
 class Spider(object):
     count = 0
@@ -31,11 +35,11 @@ class Spider(object):
             bonds = []
             # 筛选
             try:
-                bonds = self.ppdai.get_bond_list(url, 0)
+                bonds = self.ppdai.get_bond_list(url, 1)
                 bonds = filter(lambda i: i['debtdealid'] > 0, bonds)
                 bonds = filter(lambda i: i['youhui'] < 0, bonds)
-                bonds = filter(lambda i: i['lilv'] > 18, bonds)
-                bonds = filter(lambda i: i['totaldays'] <= 30, bonds)
+                bonds = filter(lambda i: (i['lilv'] > 18 and i['totaldays'] <= 30) or (i['lilv'] > 25 and i[
+                    'totaldays'] <= 100), bonds)
                 bonds = filter(lambda i: i['price'] < 500, bonds)
             except Exception, e:
                 print bonds, e
@@ -72,7 +76,7 @@ class Spider(object):
         """ 获取散标列表,选取最优散标购买 """
         url = 'http://invest.ppdai.com/loan/list?monthgroup=1&rate=8&didibid=&listingispay='
         while True:
-            loans = self.ppdai.get_loan_list(url, 0)
+            loans = self.ppdai.get_loan_all_list(url, 0)
             # 筛选
             loans = filter(lambda i: i['rank'] > 7, loans)
             loans = filter(lambda i: 'AA' in i['rankcode'] > 0, loans)
@@ -103,50 +107,32 @@ class Spider(object):
             self.__class__.count += 1
             time.sleep(5)
 
-    def crawl_user(self, url):
-        user_info = self.ppdai.get_user_detail(url)
+    # 爬去散标列表
+    def crawl_loan_list(self, url):
+        data, next_page, cache = self.ppdai.get_loan_list(url, True)
+        self.db.insert_loans(data)
+        print url
+        if next_page:
+            if not cache:
+                time.sleep(3)
+            self.crawl_loan_list(next_page)
 
-
-
-
-        # context = ssl._create_unverified_context()
-        # urllib.urlopen("https://no-valid-cert", context=context)
-        # ssl._create_default_https_context = ssl._create_unverified_context
-        #
-        # url = 'https://wirelessgateway.ppdai.com/Invest/BorrowerinfoService/Borrowerinfo'
-        # data = {
-		 #    "ListingId": "15659580",
-		 #    "Borrowernumber": "1325891"
-        # }
-        # data = urllib.urlencode(data)
-        # headers = {
-        #     "Host": "wirelessgateway.ppdai.com",
-        #     "Content-Type": "application/json",
-        #     "Accept": "*/*",
-        #     "Proxy-Connection": "keep-alive",
-        #     "X-PPD-APPID": "10080001",
-        #     "X-PPD-DEVICEID": "FA89B250-6C04-4A7C-9CB6-0E0B7F3CAA29",
-        #     "Accept-Language": "1111",
-        #     "Host": "zh-cn",
-        #     "X-PPD-TIMESTAMP": str(int(time.time())),
-        #     "X-PPD-KEYVERSION": "1",
-        #     "X-PPD-APPVERSION": "2.5.0",
-        #     "X-PPD-KEY": "tc-001",
-        #     "Accept-Encoding": "gzip, deflate",
-        #     "User-Agent": "Lender/2.5.7 CFNetwork/758.4.3 Darwin/15.5.0",
-        # }
-        #
-        # host = 'wirelessgateway.ppdai.com'
-        # url = '/Invest/BorrowerinfoService/Borrowerinfo'
-        # conn = httplib.HTTPSConnection(host)
-        # conn.request('POST', url, data, headers)
-        # r1 = conn.getresponse()
-        # print r1.status, r1.reason
-        #
-        # urllib.urlopen("https://wirelessgateway.ppdai.com", context=context)
-
-
-
+    # 根据散标列表爬去用户信息
+    def crawl_users_from_loan_list(self, count):
+        detail_urls = self.db.get_loan_urls_from_loans(count)
+        for url in detail_urls:
+            url = url[0]
+            try:
+                content, cache = Server.get(url, cache=True)
+                if content:
+                    info = Analyzer.get_loan_detail(content)
+                    # 入库
+                    self.db.insert_user_info(info)
+                    print(url)
+                if not cache:
+                    time.sleep(3)
+            except Exception, e:
+                print e
 
     def crawl_user_detail(self, user_id):
         pass

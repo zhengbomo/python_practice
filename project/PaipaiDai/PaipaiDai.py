@@ -26,7 +26,20 @@ class PaipaiDai(object):
         return Server.login(url, data) is not None
 
     @staticmethod
-    def get_loan_list(url, total_page=1):
+    def get_loan_list(url, cache):
+        """ 获取散标列表, 返回列表 """
+        domain = PaipaiDai.get_domain(url)
+        data, cache = Server.get(url, cache=cache)
+        if data:
+            data, next_page = Analyzer.get_loan_list(data)
+            if next_page:
+                next_page = os.path.join(domain, next_page.lstrip('/'))
+            return data, next_page, cache
+
+        return [], None, False
+
+    @staticmethod
+    def get_loan_all_list(url, total_page=1):
         """ 获取散标列表, 返回列表 """
         domain = PaipaiDai.get_domain(url)
         result = []
@@ -36,14 +49,14 @@ class PaipaiDai(object):
             print url
             result.extend(data)
 
-            if next_page and total_page > 0:
+            if next_page and total_page > 1:
                 next_page = os.path.join(domain, next_page.lstrip('/'))
                 time.sleep(3)
                 result.extend(PaipaiDai.get_loan_list(next_page, total_page-1))
         return result
 
     @staticmethod
-    def get_bond_list(url, total_page=0):
+    def get_bond_list(url, total_page=1):
         """ 获取债券列表 """
         domain = PaipaiDai.get_domain(url)
         bonds = []
@@ -53,7 +66,7 @@ class PaipaiDai(object):
                 data, next_page = Analyzer.get_bond_list(data)
                 bonds.extend(data)
 
-                if next_page and total_page > 0:
+                if next_page and total_page > 1:
                     next_page = os.path.join(domain, next_page.lstrip('/'))
                     PaipaiDai.get_best_bond(next_page, total_page-1)
         except Exception, e:

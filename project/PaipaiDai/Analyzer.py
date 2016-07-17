@@ -1,6 +1,8 @@
 #!/usr/bin/python
 # -*- coding:utf-8 -*-
 import re
+import time
+import datetime
 from lxml import etree
 
 
@@ -184,8 +186,158 @@ class Analyzer(object):
         return data, href
 
     @staticmethod
-    def get_detail(html):
-        pass
+    def get_loan_detail(html):
+        parser = etree.HTMLParser(encoding='utf-8')
+        tree = etree.HTML(html, parser=parser)
+
+        # 借款目的	性别	年龄	婚姻情况	文化程度	住宅状况	是否购车
+        info = {
+            'username': None,
+            'user_url': None,
+            "borrower_info": {},
+            "borrower_detail": '',
+            "shenhe_infos": [],
+            'tongji_info': {}
+        }
+
+        nodes = tree.xpath(u"//input[@id and @type='hidden']")
+        info['username'] = nodes[0].attrib['value']
+
+        # <a href="http://www.ppdai.com/user/pdu5357282613" class="username">pdu5357282613</a>
+        nodes = tree.xpath(u"//a[@href and @class='username']")
+        info['user_url'] = nodes[0].attrib['href']
+
+
+        nodes = tree.xpath(u"//h3[text()='借款人相关信息']")
+        if nodes and len(nodes):
+            nodes = nodes[0].xpath('following-sibling::table[@class="lendDetailTab_tabContent_table1"]')
+            if nodes and len(nodes) > 0:
+                # 审核信息
+                table_node = nodes[0]
+                nodes1 = table_node.xpath(u"tr[1]")
+                nodes2 = table_node.xpath(u"tr[2]")
+                if nodes1 and nodes2 and len(nodes1) and len(nodes2):
+                    # 借款人信息
+                    borrower_info = {}
+                    ths = nodes1[0].xpath(u"th")
+                    tds = nodes2[0].xpath(u"td")
+                    for th, td in zip(ths, tds):
+                        borrower_info[th.text.strip()] = td.text.strip() if td.text else None
+                    info['borrower_info'] = borrower_info
+
+
+        nodes = tree.xpath(u"//h3[text()='借款详情']")
+        if nodes and len(nodes):
+            nodes = nodes[0].xpath('following-sibling::p')
+            if nodes and len(nodes):
+                # 借款详情
+                borrower_detail = nodes[0].text
+                info['borrower_detail'] = borrower_detail
+
+        nodes = tree.xpath(u"//h3[text()='拍拍贷审核信息']")
+        if nodes and len(nodes):
+            nodes = nodes[0].xpath('following-sibling::table[@class="lendDetailTab_tabContent_table1"]')
+            if nodes and len(nodes):
+                # 审核信息
+                table_node = nodes[0]
+                nodes = table_node.xpath(u"tr/td[1]")
+                shenhe_infos = map(lambda i: i.text.strip(), nodes)
+                info['shenhe_infos'] = shenhe_infos
+
+        nodes = tree.xpath(u"//h3[text()='拍拍贷统计信息']")
+        if nodes and len(nodes):
+            nodes = nodes[0].xpath('following-sibling::p')
+            if nodes and len(nodes):
+                # 审核信息
+                pnodes = nodes
+
+                tongji_info = {
+                    "total_huanqing": 0,
+                    "total_yuqi_15": 0,
+                    "total_yuqi_16": 0,
+
+                    "total_daihuan": 0,
+                    "total_daishou": 0,
+                    "total_borrow_amount": 0,
+
+                    "first_borrow_time": 0,
+                    "regist_time": 0,
+                }
+
+                for pnode in pnodes:
+                    text = pnode.text.strip()
+                    if text.startswith('正常还清'):
+                        # 正常还清：34 次，逾期还清(1-15)：2 次，逾期还清(>15)：0 次
+                        match = re.search(u'\u6b63\u5e38\u8fd8\u6e05\uff1a(\\d+?) \u6b21', text)
+                        if match:
+                            total_huanqing = match.group(1)
+                            total_huanqing = int(total_huanqing)
+                            tongji_info['total_huanqing'] = total_huanqing
+
+                        match = re.search(u'\u903e\u671f\u8fd8\u6e05\(1-15\)\uff1a(\\d+?) \u6b21', text)
+                        if match:
+                            total_yuqi_15 = match.group(1)
+                            total_yuqi_15 = int(total_yuqi_15)
+                            tongji_info['total_yuqi_15'] = total_yuqi_15
+
+                        match = re.search(u'\u903e\u671f\u8fd8\u6e05\(\>15\)\uff1a(\\d+?) \u6b21', text)
+                        if match:
+                            total_yuqi_16 = match.group(1)
+                            total_yuqi_16 = int(total_yuqi_16)
+                            tongji_info['total_yuqi_16'] = total_yuqi_16
+
+                    if text.startswith('共计借入'):
+                        # 共计借入：¥1,900,000， 待还金额：¥0.00， 待收金额： ¥0.00
+                        u'共计借入：¥[0-9,\.]+?，'
+                        if u'共计借入：' in text:
+                            span = pnode.xpath('span[1]')[0]
+                            total_borrow_amount = span.text.lstrip('¥')
+                            total_borrow_amount = total_borrow_amount.replace(',', '')
+                            total_borrow_amount = float(total_borrow_amount)
+                            tongji_info['total_borrow_amount'] = total_borrow_amount
+
+                            if '待还金额' in span.tail:
+                                span = span.xpath('following-sibling::*[1]')[0]
+                                total_daihuan = span.text.lstrip('¥')
+                                total_daihuan = total_daihuan.replace(',', '')
+                                total_daihuan = float(total_daihuan)
+                                tongji_info['total_daihuan'] = total_daihuan
+
+                            if '待收金额' in span.tail:
+                                span = span.xpath('following-sibling::*[1]')[0]
+                                total_daishou = span.text.strip().lstrip('¥')
+                                total_daishou = total_daishou.replace(',', '')
+                                total_daishou = float(total_daishou)
+                                tongji_info['total_daishou'] = total_daishou
+
+                    if text.startswith('第一次成功借款时间'):
+                        # 第一次成功借款时间：2013/9/16 (34个月前)
+                        text = pnode.text.strip()
+                        match = re.search(u'\u7b2c\u4e00\u6b21\u6210\u529f\u501f\u6b3e\u65f6\u95f4\uff1a([0-9/]+?)\\s*\(',
+                                  text)
+
+                        if match:
+                            first_borrow_time = match.group(1)
+                            first_borrow_time = datetime.datetime.strptime(first_borrow_time,'%Y/%m/%d')
+                            first_borrow_time = time.mktime(first_borrow_time.timetuple())
+                            tongji_info['first_borrow_time'] = first_borrow_time
+
+                        pass
+                    if text.startswith('注册时间'):
+                        # 注册时间：2013/9/4 (34个月前)
+                        text = pnode.text.strip()
+                        match = re.search(u'\u6ce8\u518c\u65f6\u95f4\uff1a([0-9/]+?)\\s*\(',
+                                  text)
+
+                        if match:
+                            regist_time = match.group(1)
+                            regist_time = datetime.datetime.strptime(regist_time,'%Y/%m/%d')
+                            regist_time = time.mktime(regist_time.timetuple())
+                            tongji_info['regist_time'] = regist_time
+                        pass
+
+                info['tongji_info'] = tongji_info
+        return info
 
     @staticmethod
     def get_user_info(html):
