@@ -3,7 +3,6 @@
 import httplib
 import os
 import re
-import ssl
 import urllib
 import urllib2
 import cookielib
