@@ -6,7 +6,6 @@ import re
 import urllib
 import urllib2
 import cookielib
-from termcolor import colored, cprint
 import time
 import sys
 
@@ -59,9 +58,9 @@ class Spider(object):
                     success, message = self.ppdai.buy_bond(bond['debtdealid'], bond['youhui'])
                     if success:
                         print bond
-                        cprint(message, 'cyan')
+                        print message
                     else:
-                        cprint(message, 'red')
+                        print message
 
                     print bond
                 except Exception, e:
