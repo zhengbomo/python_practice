@@ -69,7 +69,7 @@ class Spider(object):
 
             sys.stdout.write('\r{0}, {1}'.format(url, self.__class__.count))
             self.__class__.count += 1
-            time.sleep(3)
+            time.sleep(2)
 
     def buy_best_loan(self):
         """ 获取散标列表,选取最优散标购买 """
