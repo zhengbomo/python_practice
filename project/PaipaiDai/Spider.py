@@ -29,19 +29,24 @@ class Spider(object):
 
     def buy_best_bond(self):
         """ 获取债券列表,选取最优债券购买 """
-        url = 'http://invest.ppdai.com/AllDebtList/DebtList?monthgroup=1&nodelayrate=0&CType=1&SortType=6&levels='
+        url = 'http://invest.ppdai.com/AllDebtList/DebtList?monthgroup=0&nodelayrate=0&CType=1&SortType=6&levels='
+        max_lilv = 0
+
         while True:
             bonds = []
+            origin_bonds = []
             # 筛选
             try:
-                bonds = self.ppdai.get_bond_list(url, 1)
-                bonds = filter(lambda i: i['debtdealid'] > 0, bonds)
+                origin_bonds = self.ppdai.get_bond_list(url, 1)
+                bonds = filter(lambda i: i['debtdealid'] > 0, origin_bonds)
                 bonds = filter(lambda i: i['youhui'] < 0, bonds)
-                bonds = filter(lambda i: (i['lilv'] > 18 and i['totaldays'] <= 30) or (i['lilv'] > 25 and i[
+                bonds = filter(lambda i: (i['lilv'] > 13 and i['totaldays'] <= 30) or (i['lilv'] > 20 and i[
                     'totaldays'] <= 100), bonds)
                 bonds = filter(lambda i: i['price'] < 500, bonds)
             except Exception, e:
                 print bonds, e
+
+            max_lilv = max(max(origin_bonds, key=lambda i: i['lilv']), max_lilv)
 
             if bonds and len(bonds):
                 # 按照利率排序
@@ -67,7 +72,7 @@ class Spider(object):
                 except Exception, e:
                     print bond, e
 
-            sys.stdout.write('\r{0}, {1}'.format(url, self.__class__.count))
+            sys.stdout.write('\r{0}, {1} {2}'.format(url, self.__class__.count, max_lilv['lilv']))
             self.__class__.count += 1
             time.sleep(2)
 

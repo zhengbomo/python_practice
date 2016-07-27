@@ -120,7 +120,8 @@ class Server(object):
         try:
             cookie_handler = urllib2.HTTPCookieProcessor(cookie)
             opener = urllib2.build_opener(cookie_handler)
-            response = opener.open(url, timeout=30)
+            # response = opener.open(url, timeout=30)
+            response = urllib.urlopen(url)
             content = response.read()
 
             if response.headers.dict.get('content-encoding') == 'gzip':
