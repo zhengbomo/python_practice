@@ -26,10 +26,10 @@ class PaipaiDai(object):
         return Server.login(url, data) is not None
 
     @staticmethod
-    def get_loan_list(url, cache):
+    def get_loan_list(url, cache, use_cookie=False):
         """ 获取散标列表, 返回列表 """
         domain = PaipaiDai.get_domain(url)
-        data, cache = Server.get(url, cache=cache)
+        data, cache = Server.get(url, cache=cache, use_cookie=use_cookie)
         if data:
             data, next_page = Analyzer.get_loan_list(data)
             if next_page:

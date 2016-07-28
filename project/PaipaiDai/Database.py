@@ -95,6 +95,9 @@ class Database(object):
                'regist_time real,'
                'first_borrow_time real,'
 
+               'yuqi_days real,'
+               'tiqian_days real,'
+
                'PRIMARY KEY (id),'
                'INDEX (username)'
                ')')
@@ -120,15 +123,29 @@ class Database(object):
     # 从散标列表获取散标详情url
     def get_loan_urls_from_loans(self, count):
         cu = self.conn.cursor()
-        sql = """
-            SELECT detail_url FROM loans l
-            where not exists (
-                select * from userinfo u
-                where u.user_url = l.user_url
-            )
-            limit %s, %s
-        """
-        cu.execute(sql, [0, count])
+        if count > 0:
+            sql = """
+                SELECT detail_url FROM loans l
+                where not exists (
+                    select * from userinfo u
+                    where u.user_url = l.user_url and u.yuqi_days is not null
+                )
+                limit %s, %s
+            """
+            cu.execute(sql, [0, count])
+
+            ''
+
+
+        else:
+            sql = """
+                SELECT detail_url FROM loans l
+                where not exists (
+                    select * from userinfo u
+                    where u.user_url = l.user_url and u.yuqi_days is not null
+                )
+            """
+            cu.execute(sql, [])
         result = cu.fetchall()
         cu.close()
         return result
@@ -136,6 +153,9 @@ class Database(object):
     def insert_user_info(self, info):
         username = info['username']
         user_url = info['user_url']
+        yuqi_days = info['yuqi_days']
+        tiqian_days = info['tiqian_days']
+
 
         if username and user_url:
             cursor = self.conn.cursor()
@@ -153,6 +173,9 @@ class Database(object):
             cursor.execute('update userinfo set total_borrow_amount=%s, total_huanqing=%s, total_daishou=%s, '
                            'total_yuqi_16=%s, total_yuqi_15=%s, total_daihuan=%s, regist_time=%s, '
                            'first_borrow_time=%s where username=%s', params)
+
+            cursor.execute('update userinfo set yuqi_days=%s, tiqian_days=%s where username=%s', [yuqi_days,
+                                                                                                  tiqian_days, username])
 
             borrower_info = info['borrower_info']
 

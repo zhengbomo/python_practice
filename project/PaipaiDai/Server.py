@@ -99,29 +99,31 @@ class Server(object):
             return None
 
     @staticmethod
-    def get(url, cache=True):
+    def get(url, cache=True, use_cookie=False):
         if cache:
             data = CacheManager.get(url)
             if not data:
-                data = Server.download(url)
+                data = Server.download(url, use_cookie=use_cookie)
                 if data:
                     CacheManager.set(url, data)
                 return data, False
             else:
                 return data, True
         else:
-            data = Server.download(url)
+            data = Server.download(url, use_cookie=use_cookie)
             return data, False
 
 
     @staticmethod
-    def download(url):
+    def download(url, use_cookie=False):
         cookie, _ = Server.__get_cookie()
         try:
             cookie_handler = urllib2.HTTPCookieProcessor(cookie)
             opener = urllib2.build_opener(cookie_handler)
-            # response = opener.open(url, timeout=30)
-            response = urllib.urlopen(url)
+            if use_cookie:
+                response = opener.open(url, timeout=30)
+            else:
+                response = urllib.urlopen(url)
             content = response.read()
 
             if response.headers.dict.get('content-encoding') == 'gzip':

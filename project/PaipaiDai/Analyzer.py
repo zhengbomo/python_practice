@@ -197,7 +197,9 @@ class Analyzer(object):
             "borrower_info": {},
             "borrower_detail": '',
             "shenhe_infos": [],
-            'tongji_info': {}
+            'tongji_info': {},
+            'yuqi_days': 0,
+            'tiqian_days': 0,
         }
 
         nodes = tree.xpath(u"//input[@id and @type='hidden']")
@@ -243,6 +245,24 @@ class Analyzer(object):
                 nodes = table_node.xpath(u"tr/td[1]")
                 shenhe_infos = map(lambda i: i.text.strip(), nodes)
                 info['shenhe_infos'] = shenhe_infos
+
+        # 逾期天数
+        nodes = tree.xpath(u"//p[text()='12个月的逾期天数记录（与应还款日期比较，负数表示提前还款）']")
+        if nodes and len(nodes):
+            nodes = nodes[0].xpath(u"following-sibling::table[@class='lendDetailTab_tabContent_table1']")
+            if nodes and len(nodes):
+                nodes = nodes[0].xpath('descendant::td[not(@style)]')
+                nodes = map(lambda i: i.text.strip(), nodes)
+                nodes = filter(lambda i: '--' not in i, nodes)
+                nodes = map(lambda i: int(i), nodes)
+
+                yuqi_days = filter(lambda i: i>0, nodes)
+                tiqian_days = filter(lambda i: i<0, nodes)
+
+                if len(yuqi_days):
+                    info['yuqi_days'] = sum(yuqi_days) * 1.0 / len(yuqi_days)
+                if len(tiqian_days):
+                    info['tiqian_days'] = sum(tiqian_days) * 1.0 / len(tiqian_days)
 
         nodes = tree.xpath(u"//h3[text()='拍拍贷统计信息']")
         if nodes and len(nodes):

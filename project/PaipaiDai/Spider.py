@@ -112,7 +112,7 @@ class Spider(object):
 
     # 爬去散标列表
     def crawl_loan_list(self, url):
-        data, next_page, cache = self.ppdai.get_loan_list(url, True)
+        data, next_page, cache = self.ppdai.get_loan_list(url, False, use_cookie=True)
         self.db.insert_loans(data)
         print url
         if next_page:
@@ -123,17 +123,17 @@ class Spider(object):
     # 根据散标列表爬去用户信息
     def crawl_users_from_loan_list(self, count):
         detail_urls = self.db.get_loan_urls_from_loans(count)
-        for url in detail_urls:
+        for i, url in enumerate(detail_urls):
             url = url[0]
             try:
-                content, cache = Server.get(url, cache=True)
+                content, cache = Server.get(url, cache=True, use_cookie=True)
                 if content:
                     info = Analyzer.get_loan_detail(content)
                     # 入库
                     self.db.insert_user_info(info)
-                    print(url)
+                    print('{0} {1}/{2}'.format(url, i, len(detail_urls)))
                 if not cache:
-                    time.sleep(3)
+                    time.sleep(2)
             except Exception, e:
                 print e
 
