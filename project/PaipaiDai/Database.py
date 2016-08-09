@@ -128,21 +128,17 @@ class Database(object):
                 SELECT detail_url FROM loans l
                 where not exists (
                     select * from userinfo u
-                    where u.user_url = l.user_url and u.yuqi_days is not null
+                    where u.user_url = l.user_url and u.yuqi_days is null
                 )
                 limit %s, %s
             """
             cu.execute(sql, [0, count])
-
-            ''
-
-
         else:
             sql = """
                 SELECT detail_url FROM loans l
                 where not exists (
                     select * from userinfo u
-                    where u.user_url = l.user_url and u.yuqi_days is not null
+                    where u.user_url = l.user_url and u.yuqi_days is null
                 )
             """
             cu.execute(sql, [])
@@ -214,5 +210,42 @@ class Database(object):
     def get_uncrawl_detail(self):
         pass
 
-    def get_uncrawl_user(self):
-        pass
+    def get_empty_user_urls(self, count=0):
+        cu = self.conn.cursor()
+        if count > 0:
+            sql = """
+                select user_url from userinfo
+                where wenhua is null
+                limit %s, %s
+            """
+            cu.execute(sql, [0, count])
+        else:
+            sql = """
+                select user_url from userinfo
+                where wenhua is null
+            """
+            cu.execute(sql, [])
+        result = cu.fetchall()
+        cu.close()
+        return result
+
+    def get_most_tiqian_cd_user_urls(self, count=10):
+        cu = self.conn.cursor()
+        if count > 0:
+            sql = """
+                select user_url, tiqian_days from userinfo
+                where rankcode='C' or rankcode='D'
+                order by tiqian_days
+                limit %s, %s
+            """
+            cu.execute(sql, [0, count])
+        else:
+            sql = """
+                select user_url, tiqian_days from userinfo
+                where rankcode='C' or rankcode='D'
+                order by tiqian_days
+            """
+            cu.execute(sql, [])
+        result = cu.fetchall()
+        cu.close()
+        return result

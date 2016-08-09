@@ -200,7 +200,48 @@ class Analyzer(object):
             'tongji_info': {},
             'yuqi_days': 0,
             'tiqian_days': 0,
+
+            # 利率
+            'lilv': 0,
+            # 已购
+            'has_buy': 0,
+            # 剩余
+            'rest_buy': 0,
+            # 金额
+            'amount': 0,
+            # 期限
+            'qixian': 0,
         }
+        nodes = tree.xpath(u"//div[@class='newLendDetailMoneyLeft']")
+        if nodes and len(nodes):
+            node = nodes[0]
+            dls = node.xpath("dl")
+            for dl in dls:
+                if '借款金额' in dl.xpath('dt')[0].text:
+                    jine = dl.xpath('dd')[0].xpath('em')[0].tail
+                    jine = jine.replace(',', '')
+                    jine = float(jine)
+                    info['amount'] = jine
+                elif '年利率' in dl.xpath('dt')[0].text:
+                    lilv = dl.xpath('dd')[0].text
+                    lilv = float(lilv)
+                    info['lilv'] = lilv
+                elif '期限' in dl.xpath('dt')[0].text:
+                    qixian = dl.xpath('dd')[0].text
+                    qixian = float(qixian)
+                    info['qixian'] = qixian
+
+        nodes = tree.xpath(u"//div[@class='wrapNewLendDetailInfoRight']/div[@class='restMoney']/span[@id='listRestMoney']")
+        if nodes and len(nodes):
+            node = nodes[0]
+            rest = node.text.replace('¥', '').replace(',', '')
+            info['rest_buy'] = float(rest)
+
+        nodes = tree.xpath(u"//p[@class='profit' and @style='color: red; font-size: 12px;']")
+        if nodes and len(nodes):
+            info['has_buy'] = True
+        else:
+            info['has_buy'] = False
 
         nodes = tree.xpath(u"//input[@id and @type='hidden']")
         info['username'] = nodes[0].attrib['value']
@@ -286,7 +327,7 @@ class Analyzer(object):
 
                 for pnode in pnodes:
                     text = pnode.text.strip()
-                    if text.startswith('正常还清'):
+                    if text.startswith(u'正常还清'):
                         # 正常还清：34 次，逾期还清(1-15)：2 次，逾期还清(>15)：0 次
                         match = re.search(u'\u6b63\u5e38\u8fd8\u6e05\uff1a(\\d+?) \u6b21', text)
                         if match:
@@ -306,7 +347,7 @@ class Analyzer(object):
                             total_yuqi_16 = int(total_yuqi_16)
                             tongji_info['total_yuqi_16'] = total_yuqi_16
 
-                    if text.startswith('共计借入'):
+                    if text.startswith(u'共计借入'):
                         # 共计借入：¥1,900,000， 待还金额：¥0.00， 待收金额： ¥0.00
                         u'共计借入：¥[0-9,\.]+?，'
                         if u'共计借入：' in text:
@@ -357,8 +398,63 @@ class Analyzer(object):
                         pass
 
                 info['tongji_info'] = tongji_info
+
+        # 历史借款
+        nodes = tree.xpath(u"//p[text()='历史借款']")
+        if nodes and len(nodes):
+            nodes = nodes[0].xpath(u"following-sibling::table[@class='lendDetailTab_tabContent_table1']")
+            if nodes and len(nodes):
+                lishi_borrowed = []
+                trs = nodes[0].xpath('tr')
+                for tr in trs:
+                    tds = tr.xpath('td')
+                    if len(tds) == 6:
+                        jiekuan = {}
+                        jiekuan['url'] = tds[1].xpath('a')[0].attrib['href']
+                        jiekuan['status'] = tds[4].text.strip()
+                        jiekuan['lilv'] = float(tds[2].text.strip().rstrip('%'))
+                        jiekuan['publish_time'] = tds[5].text.strip()
+                        lishi_borrowed.append(jiekuan)
+                info['lishi_borrowed'] = lishi_borrowed
+
         return info
 
+    # 获取用户信息
     @staticmethod
     def get_user_info(html):
-        pass
+        tree = etree.HTML(html)
+        nodes = tree.xpath("//div[@class='borrowinglist']")
+
+        info = {
+            "href": ""
+        }
+
+        if nodes and len(nodes):
+            node = nodes[0]
+            nodes = node.xpath("ul/li")
+            for n in nodes:
+                span = n.xpath("div[@class='rightlist fl']/div[@class='borrow_list']/table/tbody/tr/td/span["
+                          "@class='cf7971a fNormal']")
+                if span and len(span):
+                    span = span[0]
+                    if u'正在进行中' in span.text:
+                        anodes = n.xpath("div[@class='rightlist fl']/div[@class='borrowlist_tit']/a[@href]")
+                        if anodes and len(anodes):
+                            anode = anodes[0]
+                            info['href'] = anode.attrib['href']
+                            break
+
+        return info
+
+    # 判断是否满标
+    @staticmethod
+    def is_manbiao(html):
+        return u'结束时间：' in html
+
+
+
+
+
+
+
+

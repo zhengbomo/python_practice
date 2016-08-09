@@ -7,6 +7,9 @@ import urllib2
 import gzip
 import StringIO
 import json
+import requests
+import requests.utils
+import pickle
 from CacheManager import CacheManager
 
 
@@ -43,22 +46,13 @@ class Server(object):
             "X-Requested-With": "XMLHttpRequest"
         }
 
-        opener_headers = []
-        for k, v in headers.iteritems():
-            opener_headers.append((k, v))
-
-        cookie, exists = Server.__get_cookie()
+        session = requests.Session()
+        session.headers = headers
+        cookies, exists = Server.__get_cookie()
         if exists:
-            try:
-                cookie_handler = urllib2.HTTPCookieProcessor(cookie)
-                opener = urllib2.build_opener(cookie_handler)
-                opener.addheaders = opener_headers
-                response = opener.open(url, data=data, timeout=30)
-                content = response.read()
-                cookie.save(ignore_discard=True, ignore_expires=True)
-                return content
-            except Exception, e:
-                return None
+            session.cookies = cookies
+            response = session.post(url, data=data)
+            return response.text
         else:
             return None
 
@@ -78,25 +72,15 @@ class Server(object):
             "X-Requested-With": "XMLHttpRequest"
         }
 
-        opener_headers = []
-        for k, v in headers.iteritems():
-            opener_headers.append((k, v))
-
-        cookie, exists = Server.__get_cookie()
+        cookies, exists = Server.__get_cookie()
         if not exists:
-            try:
-                cookie_handler = urllib2.HTTPCookieProcessor(cookie)
-                opener = urllib2.build_opener(cookie_handler)
-                opener.addheaders = opener_headers
-                data = urllib.urlencode(data)
-                response = opener.open(url, data=data, timeout=30)
-                content = response.read()
-                cookie.save(ignore_discard=True, ignore_expires=True)
-                return content
-            except Exception, e:
-                return None
-        else:
-            return None
+            session = requests.Session()
+            session.headers = headers
+            response = session.post(url, data=data)
+
+            # 写入cookie
+            with open('cookie', 'w') as f:
+                pickle.dump(requests.utils.dict_from_cookiejar(response.cookies), f)
 
     @staticmethod
     def get(url, cache=True, use_cookie=False):
@@ -113,25 +97,16 @@ class Server(object):
             data = Server.download(url, use_cookie=use_cookie)
             return data, False
 
-
     @staticmethod
     def download(url, use_cookie=False):
-        cookie, _ = Server.__get_cookie()
+        cookies, _ = Server.__get_cookie()
         try:
-            cookie_handler = urllib2.HTTPCookieProcessor(cookie)
-            opener = urllib2.build_opener(cookie_handler)
+            session = requests.session()
             if use_cookie:
-                response = opener.open(url, timeout=30)
-            else:
-                response = urllib.urlopen(url)
-            content = response.read()
-
-            if response.headers.dict.get('content-encoding') == 'gzip':
-                gzipper = gzip.GzipFile(fileobj=StringIO.StringIO(content))
-                content = gzipper.read()
-                gzipper.close()
-
-            return content
+                session.cookies = cookies
+            response = session.get(url)
+            response.encoding = 'utf8'
+            return response.text
         except Exception, e:
             return None
 
@@ -141,8 +116,8 @@ class Server(object):
         path = os.path.join(path, 'cookie')
 
         if os.path.isfile(path):
-            cookie = cookielib.LWPCookieJar(filename=path)
-            cookie.load('cookie', ignore_discard=True, ignore_expires=True)
-            return cookie, True
+            with open('cookie') as f:
+                cookies = requests.utils.cookiejar_from_dict(pickle.load(f))
+                return cookies, True
         else:
-            return cookielib.LWPCookieJar(filename=path), False
+            return None, False

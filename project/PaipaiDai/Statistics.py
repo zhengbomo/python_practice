@@ -31,3 +31,15 @@ group by nnd
 """
 
 # 5. 统计不同
+
+# 5 提前还款排名前10的用户的信息
+sql = """
+select * from (
+	select * from userinfo order by tiqian_days limit 10
+) as t
+"""
+
+# 前10名:总借款额平均为5405
+# 前20名:总借款额平均为5505
+
+

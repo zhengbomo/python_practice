@@ -110,37 +110,138 @@ class Spider(object):
             self.__class__.count += 1
             time.sleep(5)
 
-    # 爬去散标列表
-    def crawl_loan_list(self, url):
-        data, next_page, cache = self.ppdai.get_loan_list(url, False, use_cookie=True)
-        self.db.insert_loans(data)
-        print url
-        if next_page:
-            if not cache:
-                time.sleep(3)
-            self.crawl_loan_list(next_page)
+    # 爬取散标(中风险),总金额小于5000, 利率大于20%, 等级为C, 期限为10个月以内的标
+    def crawl_best_loan(self):
+        # 中风险,11月以下,利率高于18%
+        url = 'http://invest.ppdai.com/loan/list_RiskMiddle_s12_p1?monthgroup=1,2,3&rate=18&didibid=&listingispay='
+        while True:
+            loan, info = self.crawl_loan_list(url, page_count=10)
+            if loan:
+                # 购买
+                print loan, info
+                success, message = self.ppdai.buy_loan(loan['loan_id'], 50)
+                print message
+            time.sleep(1)
 
-    # 根据散标列表爬去用户信息
-    def crawl_users_from_loan_list(self, count):
-        detail_urls = self.db.get_loan_urls_from_loans(count)
-        for i, url in enumerate(detail_urls):
-            url = url[0]
-            try:
-                content, cache = Server.get(url, cache=True, use_cookie=True)
+        pass
+
+    # 爬去散标列表,并爬去出详情,更新用户信息,满足条件则返回
+    def crawl_loan_list(self, url, page_count=1):
+        data, next_page, cache = self.ppdai.get_loan_list(url, cache=False, use_cookie=True)
+        self.db.insert_loans(data)
+
+        for i in data:
+            url = i['detail_url']
+            info = self.craw_user_info_from_loan_url(url)
+            if info:
+                # 1. 金额小于5000
+                # 2. 利率大于20%
+                # 3. 等级为C
+                # 4. 期限为10个月以内
+                if i['amount'] < 5000 and i['lilv'] >= 20 and i['rankcode'] == 'C' and i['limit_time'] < 10:
+                    # 1. 平均预期天数<=0, 提前天数>15, 总还清数 > 2
+                    if info['yuqi_days'] <= 0 and info['tiqian_days'] < -15 and info['tongji_info'].get(
+                            'total_huanqing') > 2:
+                        # 满足条件
+                        return i, info
+            time.sleep(1)
+            sys.stdout.write('\r{0}, {1}'.format(url, self.__class__.count,))
+            self.__class__.count += 1
+
+        if next_page and page_count > 0:
+            page_count -= 1
+            return self.crawl_loan_list(next_page, page_count)
+        return None, None
+
+    # 爬取中风险, 高风险散标列表,存入数据库
+    def crawl_mid_high_fengxian_loan_list(self):
+        # 中风险
+        url = 'http://invest.ppdai.com/loan/list_riskmiddle_s0_p1?monthgroup=1%2C2%2C3&rate=18&didibid=&listingispay='
+        self.crawl_loan_list_and_insert(url, 100)
+        # 高风险
+        url = 'http://invest.ppdai.com/loan/list_riskhigh?monthgroup=&rate=18&didibid=&listingispay='
+        self.crawl_loan_list_and_insert(url, 100)
+
+    # 爬去散标列表,并爬去出详情,更新用户信息,满足条件则返回
+    def crawl_loan_list_and_insert(self, url, page_count=1):
+        data, next_page, cache = self.ppdai.get_loan_list(url, True, use_cookie=True)
+        self.db.insert_loans(data)
+
+        for i in data:
+            url = i['detail_url']
+            self.craw_user_info_from_loan_url(url)
+            sys.stdout.write('\r{0}, {1}'.format(url, self.__class__.count,))
+            self.__class__.count+=1
+            if not cache:
+                time.sleep(1)
+
+        # 下一页
+        if next_page and page_count:
+            page_count -= 1
+            self.crawl_loan_list_and_insert(next_page, page_count=page_count)
+
+    # 爬取用户未完成的借款链接,并入库
+    def craw_user_uncompleted_borrow_url(self, user_url):
+        url = user_url
+        domain = PaipaiDai.get_domain(url)
+        content, cache = Server.get(url, cache=False, use_cookie=True)
+        if content:
+            info = Analyzer.get_user_info(content)
+            if info['href']:
+                info['href'] = os.path.join(domain, info['href'].lstrip('/'))
+
+                content, cache = Server.get(info['href'], cache=False, use_cookie=True)
                 if content:
-                    info = Analyzer.get_loan_detail(content)
-                    # 入库
-                    self.db.insert_user_info(info)
-                    print('{0} {1}/{2}'.format(url, i, len(detail_urls)))
-                if not cache:
-                    time.sleep(2)
-            except Exception, e:
-                print e
+                    if not Analyzer.is_manbiao(content):
+                        info = Analyzer.get_loan_detail(content)
+                        # 入库
+                        self.db.insert_user_info(info)
+
+    # 根据散标url爬取用户数据
+    def craw_user_info_from_loan_url(self, url):
+        content, cache = Server.get(url, cache=True, use_cookie=True)
+        if content:
+            info = Analyzer.get_loan_detail(content)
+            # 入库
+            self.db.insert_user_info(info)
+            return info
+        else:
+            return None
 
     def crawl_user_detail(self, user_id):
         pass
 
+    # 爬取最多提前的用户的标
+    def crawl_most_tiqian_cd_user_loan(self, count):
+        user_urls = self.db.get_most_tiqian_cd_user_urls(count)
+        for user_url in user_urls:
+            url = user_url[0]
+            domain = PaipaiDai.get_domain(url)
+            # 爬取用户可用标
+            content, cache = Server.get(url, cache=True, use_cookie=True)
+            if content:
+                info = Analyzer.get_user_info(content)
+                if info['href']:
+                    # 有可用标
+                    info['href'] = os.path.join(domain, info['href'].lstrip('/'))
+                    content, cache = Server.get(info['href'], cache=True, use_cookie=True)
+                    if content:
+                        # 未满标,验证通过
+                        if not Analyzer.is_manbiao(content):
+                            info = Analyzer.get_loan_detail(content)
+                            # 是否已购买和判断金额
+                            print '\t' + info['href']
+                            if (not info['has_buy']) and info['rest_buy'] >= 50 and info['amount'] < 5000 and info[
+                                'lilv'] > 20 and info['qixian'] <= 11:
+                                # 满足条件
+                                print '\t\t' + info['href']
 
+                            # 写入数据库
+                            self.db.insert_user_info(info)
+
+            print url, user_url[1]
+            if not cache:
+                time.sleep(1)
 
 
 
