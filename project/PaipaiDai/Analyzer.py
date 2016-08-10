@@ -239,7 +239,14 @@ class Analyzer(object):
 
         nodes = tree.xpath(u"//p[@class='profit' and @style='color: red; font-size: 12px;']")
         if nodes and len(nodes):
-            info['has_buy'] = True
+            nodes = nodes[0].xpath('a')
+            if len(nodes) > 0:
+                if '尚未投标' in nodes[0].tail:
+                    info['has_buy'] = False
+                else:
+                    info['has_buy'] = True
+            else:
+                info['has_buy'] = False
         else:
             info['has_buy'] = False
 
