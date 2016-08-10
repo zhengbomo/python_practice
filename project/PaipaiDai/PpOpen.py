@@ -27,7 +27,6 @@ class PpOpen(object):
                 if u'首次' not in loan['title'] and u'第1次' not in loan['title']:
                     # 过滤第一次的用户
                     PpOpen.analyze_loan(loan['detail_url'])
-                    print loan['detail_url']
                     time.sleep(2)
 
             if next_page and page_count > 0:
@@ -41,11 +40,13 @@ class PpOpen(object):
         if data:
             info = Analyzer.get_loan_detail(data)
             if info:
+                print url        
                 # 判断借款成功次数>0
                 huanqing = info['tongji_info'].get('total_huanqing')
                 if huanqing and huanqing > 0:
-                    # 还款记录利率>18%, 已还完时间在2016/2之后
-                    if info['lishi_borrowed']:
+					# 还款记录利率>18%, 已还完时间在2016/2之后
+                    if info['lishi_borrowed'] and not info['has_buy']:
+                        # print info                
                         for borrow in info['lishi_borrowed']:
                             if borrow['lilv'] > 12 and '已还完' in borrow['status']:
                                 publish_time = borrow['publish_time'].split('/')

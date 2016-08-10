@@ -54,9 +54,10 @@ class Analyzer(object):
             limit_time = lilv_node.text
             limit_time = int(limit_time)
 
-            lilv_node = node.xpath("div[@class='w140 operate']")[0]
-            lilv_node = lilv_node.xpath('div/input')[0]
-            loan_id = lilv_node.attrib['id']
+            # lilv_node = node.xpath("div[@class='w140 operate']")[0]
+            # lilv_node = lilv_node.xpath('div/input')[0]
+            # loan_id = lilv_node.attrib['id']
+            loan_id = '' 
 
             info = {
                 "rankcode": rankcode,
