@@ -35,7 +35,7 @@ class PpOpen(object):
                 PpOpen.open_well_loan(next_page, page_count=page_count-1)
 
     @staticmethod
-    def analyze_loan(url):
+    def analyze_loan2(url):
         data, cache = Server.get(url, cache=False, use_cookie=True)
         if data:
             info = Analyzer.get_loan_detail(data)
@@ -55,3 +55,18 @@ class PpOpen(object):
                                     print '\t' + url
                                     webbrowser.open_new_tab(url)
                                     return
+
+    @staticmethod
+    def analyze_loan(url):
+        data, cache = Server.get(url, cache=False, use_cookie=True)
+        if data:
+            info = Analyzer.get_loan_detail(data)
+            if info:
+                print url
+                # 判断借款成功次数>0
+                huanqing = info['tongji_info'].get('total_huanqing')
+                if huanqing and huanqing > 0:
+					# 还款记录利率>18%, 已还完时间在2016/2之后
+                    if info['lishi_borrowed'] and not info['has_buy'] and info['tiqian_days'] < -30:
+                        print info
+                        webbrowser.open_new_tab(url)

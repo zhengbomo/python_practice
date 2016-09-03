@@ -2,6 +2,11 @@
 # -*- coding:utf-8 -*-
 import sqlite3
 import MySQLdb
+import warnings
+
+# 忽略警告
+warnings.filterwarnings("ignore")
+
 
 class ErrorType:
     PageList = 1
@@ -102,6 +107,28 @@ class Database(object):
                'INDEX (username)'
                ')')
 
+        # 我的投标
+        cursor.execute('Create table if not EXISTS my_loan (id int not null AUTO_INCREMENT, '
+               'url text,'
+               'buy_date real,'
+               'amount real,'
+               'loan_id text,'
+               'finished integer,'
+               'lilv real,'
+               'PRIMARY KEY (id)'
+               ')')
+
+        # 我的每日利率任务
+        cursor.execute('Create table if not EXISTS lilv_task (id int not null AUTO_INCREMENT, '
+               'create_date real,'
+               'normal_lilv real,'              # 综合利率
+               'finished_lilv real,'            # 完成利率
+               'unfinished_lilv real,'          # 未完成利率
+               'total_buy real,'                # 总投资
+               'PRIMARY KEY (id)'
+               ')')
+
+
         self.conn.commit()
 
         cursor.close()
@@ -145,6 +172,60 @@ class Database(object):
         result = cu.fetchall()
         cu.close()
         return result
+
+    def get_empty_lilv_user_url(self):
+        cursor = self.conn.cursor()
+        cursor.execute('select user_url from userinfo where weight_lilv is null limit 0, 1')
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+
+        else:
+            return None
+
+    # 获取未分析的标url
+    def get_un_analyzed_bid_user_loan_url(self):
+        cursor = self.conn.cursor()
+        cursor.execute('select detail_url from loans where has_analyze_for_bid_users is null or '
+                       'has_analyze_for_bid_users = 0 limit 0, 1')
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+        else:
+            return None
+     # 获取未分析的标url
+    def set_un_analyzed_bid_user_loan_url(self, url, flag=True):
+        cursor = self.conn.cursor()
+        cursor.execute('update loans set has_analyze_for_bid_users=%s where detail_url=%s', [flag, url])
+        self.conn.commit()
+        cursor.close()
+
+    def insert_user_urls(self, urls):
+        cursor = self.conn.cursor()
+
+        cursor.execute('select user_url from userinfo where user_url in (%s)' % (','.join(urls)))
+        result = cursor.fetchone()
+
+        for url in urls:
+            cursor.execute('select count(*) from userinfo where user_url = %s', [url])
+            result = cursor.fetchone()
+            if result[0] == 0:
+                cursor.execute('insert into userinfo(user_url) values(%s)', [url])
+        self.conn.commit()
+        cursor.close()
+
+
+    def insert_user_with_weight_lilv(self, url, lilv):
+        cursor = self.conn.cursor()
+        cursor.execute('select count(*) from userinfo where user_url = %s', [url])
+        result = cursor.fetchone()
+        if result[0] == 0:
+            cursor.execute('insert into userinfo(user_url, weight_lilv) values(%s, %s)', [url, lilv])
+        else:
+            cursor.execute('update userinfo set weight_lilv=%s where user_url=%s', [lilv, url])
+        self.conn.commit()
+        cursor.close()
+
 
     def insert_user_info(self, info):
         username = info['username']
@@ -249,3 +330,124 @@ class Database(object):
         result = cu.fetchall()
         cu.close()
         return result
+
+    # 我的投标列表
+    def insert_my_loan(self, url, date, amount, loan_id):
+        cursor = self.conn.cursor()
+        cursor.execute('select count(*) from my_loan where url=%s', [url])
+        result = cursor.fetchone()
+        if result[0] == 0:
+            cursor.execute('insert into my_loan(url, buy_date, amount, loan_id) values(%s, %s, %s, %s)', [url, date,
+                                                                                                          amount, loan_id])
+        self.conn.commit()
+        cursor.close()
+
+     # 我的投标列表
+    def insert_my_loans(self, my_loans):
+        cursor = self.conn.cursor()
+        for loan in my_loans:
+            url = loan['url']
+            date = loan['date']
+            amount = loan['amount']
+            loan_id = loan['loan_id']
+
+            cursor.execute('select count(*) from my_loan where url=%s', [url])
+            result = cursor.fetchone()
+            if result[0]:
+                cursor.execute('select sum(amount) from my_loan where url=%s and buy_date!=%s', [url, date])
+                result = cursor.fetchone()
+                if result[0]:
+                    amount += result[0]
+                    cursor.execute('update my_loan set amount=%s where url = %s', [amount, url])
+                else:
+                    cursor.execute('update my_loan set amount=%s where url = %s', [amount, url])
+            else:
+                cursor.execute('insert into my_loan(url, buy_date, amount, loan_id) values(%s, %s, %s, %s)', [url, date,
+                                                                                              amount, loan_id])
+        self.conn.commit()
+        cursor.close()
+
+
+    def get_my_loan(self, index, count):
+        cu = self.conn.cursor()
+        if count > 0:
+
+            sql = """
+                select * from my_loan
+                where finished is null or lilv is null or finished = 0
+                order by buy_date
+                limit %s, %s
+            """
+            cu.execute(sql, [index, count])
+        else:
+            sql = """
+                select * from my_loan
+                where finished is null or lilv is null or finished = 0
+                order by buy_date
+            """
+            cu.execute(sql, [])
+        result = cu.fetchall()
+        cu.close()
+        return result
+
+    def update_my_loan(self, url, finished, lilv):
+        cursor = self.conn.cursor()
+        if finished:
+            finished = 1
+        else:
+            finished = 0
+        cursor.execute('update my_loan set finished = %s, lilv=%s where url = %s', [finished, lilv, url])
+        self.conn.commit()
+        cursor.close()
+
+    # 我的每日利率任务
+    def lilv_task_exist(self, date):
+        cursor = self.conn.cursor()
+
+        cursor.execute('select count(*) from lilv_task where create_date = %s', [date])
+        result = cursor.fetchone()
+        cursor.close()
+        if result[0]:
+            return True
+        else:
+            return False
+
+    # 我的每日任务
+    def insert_lilv_task(self, date, normal_lilv, finished_lilv, unfinished_lilv):
+        cursor = self.conn.cursor()
+        cursor.execute('insert into lilv_task(create_date, normal_lilv, finished_lilv, unfinished_lilv) values(%s, '
+                       '%s, %s, %s)', [date, normal_lilv, finished_lilv, unfinished_lilv])
+        self.conn.commit()
+        cursor.close()
+
+    # 更新我的每日任务
+    def update_lilv_task(self):
+        sql = """
+insert into lilv_task (create_date, normal_lilv, finished_lilv, unfinished_lilv, total_buy)
+
+SELECT
+UNIX_TIMESTAMP(CURDATE()) as create_date,
+
+(select avg(lilv) from my_loan
+where `finished` is not null
+order by lilv) as normal_lilv,
+
+(select avg(lilv) from my_loan
+where `finished` = 1
+order by lilv) as finished_lilv,
+
+(select avg(lilv) from my_loan
+where `finished` = 0
+order by lilv) as unfinished_lilv,
+
+(select sum(`amount`) from my_loan) as total_buy
+
+WHERE NOT EXISTS(
+      SELECT *
+      FROM lilv_task
+      WHERE create_date = UNIX_TIMESTAMP(CURDATE()))
+                """
+        cursor = self.conn.cursor()
+        cursor.execute(sql)
+        self.conn.commit()
+        cursor.close()

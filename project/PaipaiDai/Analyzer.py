@@ -7,6 +7,15 @@ from lxml import etree
 
 
 class Analyzer(object):
+    def test(self):
+        pass
+
+    def _test(self):
+        pass
+
+    def __test(self):
+        pass
+
     @staticmethod
     def get_loan_list(html):
         tree = etree.HTML(html)
@@ -212,6 +221,9 @@ class Analyzer(object):
             'amount': 0,
             # 期限
             'qixian': 0,
+
+            # 投资者列表
+            'bid_users': []
         }
         nodes = tree.xpath(u"//div[@class='newLendDetailMoneyLeft']")
         if nodes and len(nodes):
@@ -252,11 +264,13 @@ class Analyzer(object):
             info['has_buy'] = False
 
         nodes = tree.xpath(u"//input[@id and @type='hidden']")
-        info['username'] = nodes[0].attrib['value']
+        if nodes and len(nodes):
+            info['username'] = nodes[0].attrib['value']
 
         # <a href="http://www.ppdai.com/user/pdu5357282613" class="username">pdu5357282613</a>
         nodes = tree.xpath(u"//a[@href and @class='username']")
-        info['user_url'] = nodes[0].attrib['href']
+        if nodes and len(nodes):
+            info['user_url'] = nodes[0].attrib['href']
 
 
         nodes = tree.xpath(u"//h3[text()='借款人相关信息']")
@@ -295,6 +309,7 @@ class Analyzer(object):
                 shenhe_infos = map(lambda i: i.text.strip(), nodes)
                 info['shenhe_infos'] = shenhe_infos
 
+
         # 逾期天数
         nodes = tree.xpath(u"//p[text()='12个月的逾期天数记录（与应还款日期比较，负数表示提前还款）']")
         if nodes and len(nodes):
@@ -306,7 +321,7 @@ class Analyzer(object):
                 nodes = map(lambda i: int(i), nodes)
 
                 yuqi_days = filter(lambda i: i>0, nodes)
-                tiqian_days = filter(lambda i: i<0, nodes)
+                tiqian_days = filter(lambda i: i<=0, nodes)
 
                 if len(yuqi_days):
                     info['yuqi_days'] = sum(yuqi_days) * 1.0 / len(yuqi_days)
@@ -425,18 +440,35 @@ class Analyzer(object):
                         lishi_borrowed.append(jiekuan)
                 info['lishi_borrowed'] = lishi_borrowed
 
+        # 投资者列表
+        nodes = tree.xpath(u"//div[@id='bidTable_div']")
+        if nodes and len(nodes):
+            node = nodes[0]
+            aa = node.xpath("div/ol/li[@class='w266']/a[@class='listname']")
+            info['bid_users'] = map(lambda i: i.attrib['href'], aa)
+
+
         return info
 
     # 获取用户信息
     @staticmethod
     def get_user_info(html):
         tree = etree.HTML(html)
-        nodes = tree.xpath("//div[@class='borrowinglist']")
+
 
         info = {
+            'weighting_lilv': 0,
             "href": ""
         }
 
+        # 加权投标利率（反映风险偏好）：
+        nodes = tree.xpath(u'//th[text()="加权投标利率（反映风险偏好）： "]')
+        if nodes and len(nodes):
+            th = nodes[0];
+            info['weighting_lilv'] = float(th.xpath('following-sibling::td/span')[0].text)
+
+        # 已还完
+        nodes = tree.xpath("//div[@class='borrowinglist']")
         if nodes and len(nodes):
             node = nodes[0]
             nodes = node.xpath("ul/li")
@@ -453,6 +485,74 @@ class Analyzer(object):
                             break
 
         return info
+
+    @staticmethod
+    def get_my_loan_list(html):
+        parser = etree.HTMLParser(encoding='utf-8')
+        tree = etree.HTML(html, parser=parser)
+        nodes = tree.xpath('//table[@class="receivetab c666666"]')
+        my_loans = []
+        if nodes and len(nodes):
+            table = nodes[0]
+            trs = table.xpath('tr')
+            for tr in trs:
+                tds = tr.xpath('td')
+                if len(tds) == 6:
+                    date = tds[0].text.strip()
+                    date = datetime.datetime.strptime(date,'%Y/%m/%d %H:%M:%S')
+                    date = time.mktime(date.timetuple())
+                    date = long(date)
+
+                    amount = tds[2].text.strip().lstrip(u'¥').replace(',', '')
+                    amount = float(amount)
+
+                    loan_id = tds[5].xpath('a')[0].text.strip()
+                    url = tds[5].xpath('a')[0].attrib['href']
+                    my_loans.append({"date": date, 'amount': amount, 'loan_id': loan_id, 'url': url})
+
+        # 下一页
+        href = None
+        nodes = tree.xpath("//a[@class='nextpage']")
+        if len(nodes) > 0:
+            href = nodes[0].attrib.get('href')
+            if href == 'javascript:void(0)':
+                href = None
+
+        return my_loans, href
+
+    # 散标还款详情
+    @staticmethod
+    def get_my_loan_huankuan_detail(html):
+        parser = etree.HTMLParser(encoding='utf-8')
+        tree = etree.HTML(html, parser=parser)
+        nodes = tree.xpath('//table')
+        huankuans = []
+        huanqing = True
+        if nodes and len(nodes):
+            table = nodes[0]
+            trs = table.xpath('tr')
+            for tr in trs:
+                tds = tr.xpath('td')
+                if len(tds) == 7:
+                    benxi = float(tds[1].text.strip().lstrip(u'¥').replace(',', ''))
+                    tiqian = int(tds[5].text.strip().lstrip(u'¥').split('/')[-1])
+
+                    state = tds[6].xpath('span')[0].text.strip()
+                    if u'逾期还款' in state:
+                        pass
+                    elif u'准时还款' in state:
+                        pass
+                    elif u'等待还款中' in state:
+                        huanqing = False
+                        benxi = float(tds[2].text.strip().lstrip(u'¥').replace(',', ''))
+                    else:
+                        huanqing = False
+                        tiqian = 0
+                        benxi = float(tds[2].text.strip().lstrip(u'¥').replace(',', ''))
+
+                    huankuans.append([benxi, tiqian])
+        return huankuans, huanqing
+
 
     # 判断是否满标
     @staticmethod

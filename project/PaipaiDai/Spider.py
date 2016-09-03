@@ -208,8 +208,36 @@ class Spider(object):
         else:
             return None
 
-    def crawl_user_detail(self, user_id):
-        pass
+    # 爬去标的所有投资用户
+    def craw_load_bid_users(self):
+        loan_url = self.db.get_un_analyzed_bid_user_loan_url()
+        while loan_url:
+            content, cache = Server.get(loan_url, cache=True, use_cookie=True)
+            if content:
+                loan_detail = Analyzer.get_loan_detail(content)
+                users = loan_detail['bid_users']
+                self.db.insert_user_urls(users)
+                self.db.set_un_analyzed_bid_user_loan_url(loan_url)
+                if not cache:
+                    time.sleep(2)
+            print "爬去标的所有投资用户 " + loan_url
+            loan_url = self.db.get_un_analyzed_bid_user_loan_url()
+
+    # 爬去用户加权利率
+    def crawl_user_weight_lilv(self):
+        user_url = self.db.get_empty_lilv_user_url()
+        while user_url:
+            content, cache = Server.get(user_url, cache=True, use_cookie=True)
+            if content:
+                info = Analyzer.get_user_info(content)
+                # 入库
+                self.db.insert_user_with_weight_lilv(user_url, info['weighting_lilv'])
+                if not cache:
+                    time.sleep(2)
+
+            print "爬去用户加权利率 " + user_url
+            user_url = self.db.get_empty_lilv_user_url()
+
 
     # 爬取最多提前的用户的标
     def crawl_most_tiqian_cd_user_loan(self, count):
@@ -242,6 +270,112 @@ class Spider(object):
             print url, user_url[1]
             if not cache:
                 time.sleep(1)
+
+    def getHuankuanInfo(self, listingId):
+        url = 'http://invest.ppdai.com/account/paybacklendview/?ListingId={0}'
+        pass
+
+
+    # 获取我的所有散标投资列表
+    def get_buy_loans(self):
+        days = 180
+        url = 'http://www.ppdai.com/moneyhistory?Type=3&Time={0}&page=1'.format(days)
+        self.__get_buy_loans2(url)
+
+    # 获取所有散标投资列表
+    def __get_buy_loans2(self, url):
+        domain = PaipaiDai.get_domain(url)
+        content, cache = Server.get(url, cache=True, use_cookie=True)
+        if content:
+            my_loans, next_page = Analyzer.get_my_loan_list(content)
+            self.db.insert_my_loans(my_loans)
+            print url
+            if next_page:
+                if not cache:
+                    time.sleep(2)
+                next_page = os.path.join(domain, next_page.lstrip('/'))
+                self.__get_buy_loans2(next_page)
+
+    def get_loan_huankuan_detail(self):
+        my_loans = self.db.get_my_loan(0, 0)
+        for my_loan in my_loans:
+            url = 'http://invest.ppdai.com/account/paybacklendview/?ListingId={0}'.format(my_loan[4])
+            content, cache = Server.get(url, cache=True, use_cookie=True)
+            if content:
+                huankuans, huanqin = Analyzer.get_my_loan_huankuan_detail(content)
+
+                if len(huankuans) > 0:
+                    dengerbenxi = map(lambda i: i[0], huankuans)
+                    tiqians = map(lambda i: i[1], huankuans)
+                    benjin = my_loan[3]
+
+                    lilv = self.getLilv(benjin, dengerbenxi, tiqians)
+                    print '{0}: {1}'.format(my_loan[1], lilv)
+                    if huanqin:
+                        self.db.update_my_loan(my_loan[1], True, lilv)
+                    else:
+                        self.db.update_my_loan(my_loan[1], False, lilv)
+                    if not cache:
+                        time.sleep(2)
+
+
+
+    # 计算投资综合利率
+    def getLilv1(self, benjin, dengerbenxi, tiqians):
+        lixi = sum(dengerbenxi) - benjin
+        qishu = len(dengerbenxi)
+        tians = []
+        for i, tiqian in enumerate(tiqians):
+            tian = i * 31 + 31 + tiqian
+            if tian == 0:
+                tian = 1
+            tians.append(tian)
+
+        tians2 = [tians[0]]
+        for first, second in zip(tians[0:-1], tians[1:]):
+            tians2.append(second - first)
+
+        tians = tians2
+
+        amounts = []
+        for i in range(0, qishu):
+            amounts.append(benjin - sum(dengerbenxi[0:i]))
+
+        sa = 0
+
+        for amount, day in zip(amounts, tians):
+            sa += amount * day / 365.0
+
+        return lixi / sa
+
+    # 计算借款综合利率
+    def getLilv(self, benjin, dengerbenxi, tiqians):
+        month = 30
+        lixi = sum(dengerbenxi) - benjin
+        qishu = len(dengerbenxi)
+        tians = []
+        for i, tiqian in enumerate(tiqians):
+            tian = i * month + month + tiqian
+            if tian == 0:
+                tian = 1
+            tians.append(tian)
+
+        tians2 = [tians[0]]
+        for first, second in zip(tians[0:-1], tians[1:]):
+            tians2.append(second - first)
+
+        tians = tians2
+
+        amounts = []
+        for i in range(0, qishu):
+            amounts.append(benjin - sum(dengerbenxi[0:i]))
+
+        sa = 0
+
+        for amount, day in zip(amounts, tians):
+            sa += amount * day / 365.0
+
+        return lixi / sa
 
 
 
