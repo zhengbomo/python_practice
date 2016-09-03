@@ -9,7 +9,7 @@ from flask import make_response
 from flask import abort
 from flask import render_template
 
-from flask_script import Manager
+from flask_script import Manager, Server
 from flask_bootstrap import Bootstrap
 from flask_moment import Moment
 
@@ -97,4 +97,6 @@ if __name__ == '__main__':
     bootstrap = Bootstrap(app)
     moment = Moment(app)
     manager = Manager(app)
+    server = Server(host="0.0.0.0", port=9000)
+    manager.add_command("runserver", server)
     manager.run()
