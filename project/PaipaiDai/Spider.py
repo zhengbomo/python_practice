@@ -11,7 +11,6 @@ import sys
 
 from Server import Server
 from Analyzer import Analyzer
-from Database import Database, ErrorType
 from PaipaiDai import PaipaiDai
 
 import sys
@@ -23,7 +22,6 @@ class Spider(object):
     count = 0
 
     def __init__(self):
-        self.db = Database()
         self.ppdai = PaipaiDai()
 
     def buy_best_bond(self):
@@ -376,28 +374,5 @@ class Spider(object):
             sa += amount * day / 365.0
 
         return lixi / sa
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

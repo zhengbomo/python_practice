@@ -26,7 +26,7 @@ class PpOpen(object):
             for loan in loans:
                 if u'首次' not in loan['title'] and u'第1次' not in loan['title']:
                     # 过滤第一次的用户
-                    PpOpen.analyze_loan(loan['detail_url'])
+                    PpOpen.analyze_loan2(loan['detail_url'])
                     time.sleep(2)
 
             if next_page and page_count > 0:
@@ -39,19 +39,19 @@ class PpOpen(object):
         data, cache = Server.get(url, cache=False, use_cookie=True)
         if data:
             info = Analyzer.get_loan_detail(data)
-            if info:
+            if info and info['amount'] < 4000:
                 print url        
                 # 判断借款成功次数>0
                 huanqing = info['tongji_info'].get('total_huanqing')
                 if huanqing and huanqing > 0:
 					# 还款记录利率>18%, 已还完时间在2016/2之后
                     if info['lishi_borrowed'] and not info['has_buy']:
-                        # print info                
+                        print info                
                         for borrow in info['lishi_borrowed']:
                             if borrow['lilv'] > 12 and '已还完' in borrow['status']:
                                 publish_time = borrow['publish_time'].split('/')
                                 # 时间在2016/2之后
-                                if int(publish_time[0]) >= 2016 and int(publish_time[1]) > 1:
+                                if int(publish_time[0]) >= 2016 and int(publish_time[1]) > 3:
                                     print '\t' + url
                                     webbrowser.open_new_tab(url)
                                     return
@@ -61,12 +61,44 @@ class PpOpen(object):
         data, cache = Server.get(url, cache=False, use_cookie=True)
         if data:
             info = Analyzer.get_loan_detail(data)
-            if info:
+            if info and info['amount'] < 4000:
                 print url
                 # 判断借款成功次数>0
                 huanqing = info['tongji_info'].get('total_huanqing')
                 if huanqing and huanqing > 0:
-					# 还款记录利率>18%, 已还完时间在2016/2之后
+                    # 还款记录利率>18%, 已还完时间在2016/2之后
                     if info['lishi_borrowed'] and not info['has_buy'] and info['tiqian_days'] < -30:
                         print info
+                        print '\t' + url
                         webbrowser.open_new_tab(url)
+                                    
+    @staticmethod
+    def check_loan_qishu(url):
+        data, cache = Server.get(url, cache=False, use_cookie=True)
+        if data:
+            info = Analyzer.get_loan_detail(data)
+            if info:
+                qishu = info['qishu']
+                
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+>>>>>>> Stashed changes

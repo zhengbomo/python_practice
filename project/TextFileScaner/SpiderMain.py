@@ -16,12 +16,13 @@ if __name__ == '__main__':
 
 
     # 扫描目录下所有图片
-    scan_folder = '/Users/zhengxiankai/Documents/uShareit/App/code/ushareit'
-    file_filter_pattern = r'.jpg|.png|.pdf'
-    files = Scanner.scan(scan_folder, file_filter_pattern, None)
+    scan_folder = r'C:\Users\bomo\Desktop\fdsafdsa'
+    file_filter_pattern = r'.java'
+    content_pattern = r'/api/platformLinkIn/weibo'
+    files = Scanner.scan(scan_folder, file_filter_pattern, content_pattern)
     for i in files:
         _, name = os.path.split(i)
-        print name
+        print i
 
 
 
