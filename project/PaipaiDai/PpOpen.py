@@ -81,24 +81,4 @@ class PpOpen(object):
                 qishu = info['qishu']
                 
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
->>>>>>> Stashed changes
+  
