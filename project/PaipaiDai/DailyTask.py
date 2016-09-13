@@ -32,10 +32,6 @@ class DailyTask(object):
             # 3. 分析
             self.db.update_lilv_task()
 
-
-
-
-
     # 获取我的所有散标投资列表
     def __get_buy_loans(self):
         days = 180
@@ -45,7 +41,7 @@ class DailyTask(object):
     # 获取所有散标投资列表
     def __get_buy_loans2(self, url):
         domain = PaipaiDai.get_domain(url)
-        content, cache = Server.get(url, cache=True, use_cookie=True)
+        content, cache = Server.get(url, cache=False, use_cookie=True)
         if content:
             my_loans, next_page = Analyzer.get_my_loan_list(content)
             self.db.insert_my_loans(my_loans)
@@ -55,6 +51,9 @@ class DailyTask(object):
                     time.sleep(2)
                 next_page = os.path.join(domain, next_page.lstrip('/'))
                 self.__get_buy_loans2(next_page)
+        else:
+            time.sleep(2)
+
 
 
     # 获取我的散标的还款详情

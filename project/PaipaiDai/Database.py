@@ -423,10 +423,12 @@ class Database(object):
     # 更新我的每日任务
     def update_lilv_task(self):
         sql = """
-insert into lilv_task (create_date, normal_lilv, finished_lilv, unfinished_lilv, total_buy)
+insert into lilv_task (create_date, create_date2, normal_lilv, finished_lilv, unfinished_lilv, total_buy, current_buy)
 
 SELECT
 UNIX_TIMESTAMP(CURDATE()) as create_date,
+
+CURDATE() as create_date2,
 
 (select avg(lilv) from my_loan
 where `finished` is not null
@@ -440,7 +442,9 @@ order by lilv) as finished_lilv,
 where `finished` = 0
 order by lilv) as unfinished_lilv,
 
-(select sum(`amount`) from my_loan) as total_buy
+(select sum(`amount`) from my_loan) as total_buy,
+
+(select sum(amount) from my_loan where finished = 0) as current_buy
 
 WHERE NOT EXISTS(
       SELECT *

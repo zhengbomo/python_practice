@@ -323,6 +323,8 @@ class Analyzer(object):
                 yuqi_days = filter(lambda i: i>0, nodes)
                 tiqian_days = filter(lambda i: i<=0, nodes)
 
+                info['tiqian_days_list'] = tiqian_days
+
                 if len(yuqi_days):
                     info['yuqi_days'] = sum(yuqi_days) * 1.0 / len(yuqi_days)
                 if len(tiqian_days):
