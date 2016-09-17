@@ -31,8 +31,9 @@ class Server(object):
             return None
 
     @staticmethod
-    def post(url, data):
-        headers = {
+    def post(url, data, headers=None):
+
+        default_headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
             "Accept-Encoding": "gzip, deflate, sdch",
             "Accept-Language": "zh-CN,zh;q=0.8,en;q=0.6",
@@ -45,6 +46,11 @@ class Server(object):
                           "Chrome/51.0.2704.103 Safari/537.36",
             "X-Requested-With": "XMLHttpRequest"
         }
+        if headers:
+            for key, value in headers.iteritems():
+                default_headers[key] = value
+
+        headers = default_headers
 
         session = requests.Session()
         session.headers = headers

@@ -202,6 +202,7 @@ class Analyzer(object):
 
         # 借款目的	性别	年龄	婚姻情况	文化程度	住宅状况	是否购车
         info = {
+            'loan_id': '0',
             'username': None,
             'user_url': None,
             "borrower_info": {},
@@ -225,6 +226,11 @@ class Analyzer(object):
             # 投资者列表
             'bid_users': []
         }
+
+        nodes = tree.xpath(u"//input[@class='inputAmount'and @type='text']")
+        if nodes and len(nodes):
+            info['loan_id'] = nodes[0].attrib['id']
+
         nodes = tree.xpath(u"//div[@class='newLendDetailMoneyLeft']")
         if nodes and len(nodes):
             node = nodes[0]
@@ -555,6 +561,16 @@ class Analyzer(object):
                     huankuans.append([benxi, tiqian])
         return huankuans, huanqing
 
+    # 判断是否已经签到
+    @staticmethod
+    def check_attendance(html):
+        parser = etree.HTMLParser(encoding='utf-8')
+        tree = etree.HTML(html, parser=parser)
+        nodes = tree.xpath('//span[@id="btnGetPaiMoney"]')
+        if nodes and len(nodes):
+            return nodes[0].text == '已签'
+        else:
+            return False
 
     # 判断是否满标
     @staticmethod

@@ -26,6 +26,24 @@ class PaipaiDai(object):
         return Server.login(url, data) is not None
 
     @staticmethod
+    def __check_attendance():
+        data, _ = Server.get('http://invest.ppdai.com/account/lend', cache=False, use_cookie=True)
+        if data:
+            return Analyzer.check_attendance(data)
+        return False
+
+    # 签到
+    @staticmethod
+    def attendance():
+        if not PaipaiDai.__check_attendance():
+            res = Server.post('http://invest.ppdai.com/PaiMoney/PaiMoneySignin', data=None,
+                              headers={'Referer': u'http://invest.ppdai.com/account/lend'})
+            if res and res['Code'] > 0:
+                return True
+            else:
+                return False
+
+    @staticmethod
     def get_loan_list(url, cache, use_cookie=False):
         """ 获取散标列表, 返回列表 """
         domain = PaipaiDai.get_domain(url)

@@ -14,9 +14,20 @@ class PpOpen(object):
     def __init__(self):
         pass
 
+    @staticmethod
+    def open_well_loan():
+        # 循环二十次
+        for i in range(1, 20):
+            url = 'http://invest.ppdai.com/loan/list_RiskMiddle_s12_p1?monthgroup=&rate=20&didibid=&listingispay='
+            PpOpen.__open_well_loan(url, page_count=10)
+
+            # 中风险, 利率18%+, 进度排序
+            url = 'http://invest.ppdai.com/loan/list_RiskMiddle_s1_p1?monthgroup=&rate=20&didibid=&listingispay='
+            PpOpen.__open_well_loan(url, page_count=10)
+
     # 打开符合条件的标: 非第一次借款, 近期有已还完的借款, 还款利率>18%, 发布时间在2016/2之后
     @staticmethod
-    def open_well_loan(url, page_count=1):
+    def __open_well_loan(url, page_count=1):
         domain = PaipaiDai.get_domain(url)
         data, cache = Server.get(url, cache=False, use_cookie=True)
         if data:
@@ -49,9 +60,15 @@ class PpOpen(object):
                             and not info['has_buy'] \
                             and info['tiqian_days'] < -30 \
                             and len(info['tiqian_days_list']) > 2:
-                        print '\t' + url
-                        webbrowser.open_new_tab(url)
-                                    
+
+                        print u'买买买' + url
+                        if len(info['tiqian_days_list']) > 3 and info['tiqian_days'] < -50:
+                            res, msg = PaipaiDai.buy_loan(info['loan_id'], 50)
+                            if not res:
+                                print u'买买买失败:{0}'.format(msg)
+                        else:
+                            webbrowser.open_new_tab(url)
+
     @staticmethod
     def check_loan_qishu(url):
         data, cache = Server.get(url, cache=False, use_cookie=True)
