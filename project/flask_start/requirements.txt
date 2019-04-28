@@ -1,6 +1,6 @@
 click==6.6
 dominate==2.2.1
-Flask==0.11.1
+Flask==0.12.3
 Flask-Bootstrap==3.3.6.0
 Flask-Moment==0.5.1
 Flask-Script==2.0.5
